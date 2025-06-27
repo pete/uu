@@ -29,6 +29,9 @@ Differences from the version shipped with sharutils:
 · Does not support base64, just old-style uuencoded.
 · Somewhat more forgiving with bad data.  (Invalid characters decode
   to long strings of null bytes instead of throwing an error.)
+· Security is "best effort" because I am the only user because I just
+  wrote it today and I don't foresee this program getting too
+  much use from people that are not me.
 
 The old, standard-ish uudecode.c probably works with ape/pcc, and if
 you want a "real" uudecode, that's probably what you should do.  This
