@@ -1,0 +1,41 @@
+uudecode in awk for use on Plan 9.  TL;DR:  It works, but is slow.
+
+PoC||GTFO makes polyglot PDFs, all of which double as zip files.
+Cool!  Phrack, though, is all text files, and embedded data is
+uuencoded.  That's also cool, but it turns out Plan 9 has no uudecode.
+It is probably trivial to port the C version, but it is easy to do in
+awk and that is more fun anyway (despite, or because of, the lack of
+binary operators).
+
+...And it worked on the first try!
+
+Unfortunately, the second try involved confirming my fears: `printf
+"%s"` handles UTF-8 correclty, which makes it impossible to emit
+binary data correctly, because awk is for strings of characters, not
+arrays of bytes.  So we write out bytes as we get them.  For details,
+see the giant comment block at uudecode:/^function.printdec .
+
+Differences from the version shipped with sharutils:
+· Slower!
+· Portable:  tested working on Plan 9's awk (written by bwk himself),
+  gawk, nawk, mawk, and recent versions of busybox's awk.  (busybox
+  1.21 failed because it appears to elide null bytes, but busybox 1.38
+  worked, so I didn't investigate further.)
+· Significantly more verbose.  (I expected to have to spend more time
+  debugging.)
+· Does not mind more than one file embedded.  (The version bundled
+  with sharutils stops after the first file.)
+· Does not throw an error if zero files are embedded.
+· Does not support base64, just old-style uuencoded.
+· Somewhat more forgiving with bad data.  (Invalid characters decode
+  to long strings of null bytes instead of throwing an error.)
+
+The old, standard-ish uudecode.c probably works with ape/pcc, and if
+you want a "real" uudecode, that's probably what you should do.  This
+version is just a stunt-hack, it is only in a git repo because I told
+a couple of friends on fedi that I thought it could be done, so I'm
+showing them.  The repo is only named "uu" because maybe I port
+uuencode to awk at some point.  As things stand, I just wanted to look
+at a file included in an old issue of Phrack, noticed there was no
+uudecode on Plan 9, and thought it looked easy to implement, it was,
+so I was able to view the files.

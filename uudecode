@@ -1,0 +1,77 @@
+#!/bin/awk -f
+# Usage:  uudecode [files]
+
+BEGIN { mktbl() }
+END { exit estatus }
+
+{gsub(/\r/, "")}
+
+outf && $1 == "end" {
+	print obytes, "bytes"
+	close(outf);
+	system("chmod " mode " '" outf "'")
+	outf=obytes=0
+	next
+}
+outf && $1 == "`"   { next }
+outf && $1 == " "   { next }
+outf {
+	esz = tbl[substr($0, 1, 1)]
+	printdec(esz, substr($0, 2))
+}
+
+$1 == "begin" {
+	if($2 !~ /^[0-7][0-7][0-7]$/) {
+		printf "Invalid mode \"%s\" on %s:%d\n", $2, FILENAME, FNR
+		estatus = 1
+		next
+	}
+	if($3 ~ /\.\.\/|\/\.\.|^\//) {
+		printf "Bad filename \"%s\" on  %s:%d\n", $2, FILENAME, FNR
+		estatus = 1
+		next
+	}
+	printf "\"%s\" (%s) starts %s:%d ... ", $3, $2, FILENAME, FNR
+	mode = $2
+	outf = $3
+	next
+}
+
+function mktbl(	i) {
+	for(i = 0; i <= 63; i++)
+		tbl[sprintf("%c", i+32)] = i
+	# Both "`" and " " decode to zero; " " is not technically valid, but
+	# some encoders write it.
+	szs["`"] = 0
+}
+
+function printdec(l, d	,i,j,b,c){
+	# To account for padding, we just buffer the whole 32-byte chunk and
+	# then clip it.  To avoid UTF-8 issues with substr, we  cram the bytes
+	# into an array.
+	#
+	# Unfortunately, this is why it's slow:  writing one byte at a time
+	# is abysmally slow, but smashing the bytes together into a string
+	# caused awk to treat it like a UTF-8 string and the files came out
+	# wrong.  It's possible to do something like piping it to dd to buffer
+	# but we'd lose some portability, and the entire point is to take the
+	# portability side of the tradeoff.
+	delete o
+	for(i=1; i<=length(d); i++) {
+		b = tbl[substr(d,i,1)]
+		if((i%4)==1) {
+			c = b
+		} else if((i%4)==2) {
+			o[j++] = (c*4)+int(b/16)
+			c = b%16
+		} else if((i%4)==3) {
+			o[j++] = (c*16)+int(b/4)
+			c = b%4
+		} else {
+			o[j++] = (c*64)+b
+		}
+	}
+	for(i=0; i<l; i++)
+		printf "%c", o[i] > outf
+	obytes += l
+}
